@@ -7,6 +7,7 @@ sudo apt update && sudo apt upgrade -y
 # Ajouter l'association entre le nom de domaine et l'adresse IP dans /etc/hosts
 sudo bash -c "echo '$SERVER_IP $DOMAIN_NAME' >> /etc/hosts"
 
+je modifie encore plus
 # Demander le nom de domaine ou l'adresse IP du serveur
 read -p "Entrez le nom de domaine ou l'adresse IP du serveur : " SERVER_NAME
 
@@ -106,3 +107,4 @@ sudo chmod 755 /var/www/${SITE_NAME}-data -R
 sudo systemctl restart apache2
 
 echo "Installation de $SITE_NAME terminée."
+

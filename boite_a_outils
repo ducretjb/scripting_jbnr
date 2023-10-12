@@ -1,0 +1,163 @@
+#!/bin/bash
+
+PS3="
+TEST: (1-Infos) (2-Convertir IP) (3-Gestion des IP) (4-Gestion UTILISATEUR) (5-Scan IP) (6-Scan HTTP(s)) (7-Scan DHCP) (8-Scan CVE) (9-Infos wan) (10-Profils) (11-FIN) "
+
+while true; do
+    clear
+    select choice in "Infos" "Convertir IP" "Gestion des IP" "Gestion Profil" "Scan IP" "Scan HTTP(s)" "Scan DHCP" "Scan CVE" "Infos WAN" "Profils" "FIN"; do
+        case $REPLY in
+            1) # Test 1 - Infos
+                echo "Nom des cartes réseau:"
+                ip a -s | awk '{print $1}'
+                echo "Liste des adresses IPv4:"
+                ip -4 addr show | grep inet | awk '{print $2}'
+                echo "Liste des adresses IPv6:"
+                ip -6 addr show | grep inet6 | awk '{print $2}'
+                echo "Liste des serveurs DNS pour www.exemple.com:"
+                host -a www.exemple.com
+                echo "Adresse du serveur DHCP:"
+                cat /var/lib/dhcp/dhclient.leases | grep dhcp-server-identifier | awk '{print $3}'
+                echo "Adresse MAC de la carte réseau:"
+                /sbin/ifconfig | grep ether | awk '{print $2}'
+                echo "Table de routage:"
+                ip route
+                break
+                ;;
+            2) # Test 2 - Convertir IP
+                function convip() {
+                    CONV=({0..1}{0..1}{0..1}{0..1}{0..1}{0..1}{0..1}{0..1})
+
+                    ip=""
+                    for byte in $(echo ${1} | tr "." " "); do
+                        ip="${ip}.${CONV[${byte}]}"
+                    done
+                    echo ${ip:1}
+                }
+
+                echo -n "Entrez votre adresse IP : "; read ip1
+                echo -n "Entrez votre masque de sous-réseau : "; read ip2
+
+                a=$(convip "${ip1}")
+                b=$(convip "${ip2}")
+
+                IFS=. read -r i1 i2 i3 i4 <<< $ip1
+                IFS=. read -r m1 m2 m3 m4 <<< $ip2
+
+                echo "Adresse IP en binaire: ${a}"
+                echo "Masque de sous-réseau en binaire: ${b}"
+
+                printf "Votre réseau est le %d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
+                ;;
+            3) # Test 3 - Gestion des IP
+                read -p "Voulez-vous supprimer l'adresse IP actuelle ? Répondez par oui ou non : " CHOIX
+                if [ "$CHOIX" == "oui" ]; then
+                    sudo ip addr flush dev eth0
+                    echo "Adresse IP effacée."
+                fi
+
+                read -p "Veuillez entrer une nouvelle adresse IP : " IP1
+                sudo ip addr add "$IP1" dev eth0
+                echo "Votre nouvelle adresse IP est : $IP1"
+
+                read -p "Voulez-vous désactiver la carte réseau ? " CHOIX1
+                if [ "$CHOIX1" == "oui" ]; then
+                    sudo ip link set eth0 down
+                    echo "Votre carte réseau est désactivée."
+
+                    read -p "Voulez-vous la réactiver ? " CHOIX2
+                    if [ "$CHOIX2" == "oui" ]; then
+                        sudo ip link set eth0 up
+                        echo "Votre carte réseau est réactivée."
+                    else
+                        echo "Opération annulée. La carte réseau reste désactivée."
+                    fi
+                fi
+                ;;
+            4) # Test 4 - Gestion UTILISATEUR
+                read -p "Voulez-vous créer un nouvel utilisateur ? (oui/non) " CHOIX3
+
+                if [ "$CHOIX3" == "oui" ]; then
+                    read -p "Entrez le nom du nouvel utilisateur : " USER
+
+                    grep -q "^$USER:" /etc/passwd
+                    if [ $? -eq 0 ]; then 
+                        echo "L'utilisateur '$USER' existe déjà."
+                    else
+                        sudo useradd -m $USER
+                        echo "Nouvel utilisateur '$USER' créé."
+
+                        sudo passwd $USER
+
+                        echo "Nouveau profil fonctionnel."
+                    fi
+                fi
+
+                read -p "Voulez-vous supprimer un profil ? (oui/non) " CHOIX4
+                if [ "$CHOIX4" == "oui" ]; then
+                    read -p "Entrez le nom de l'utilisateur à supprimer : " USER_DEL
+                    sudo deluser --remove-home $USER_DEL
+                    echo "Le profil de l'utilisateur '$USER_DEL' a été supprimé."
+                fi
+                ;;
+            5) # Test 5 - Scan IP
+                echo "Lancement du scan des adresses IP..."
+                nmap -sn 192.168.1.0/24
+                ;;
+            6) # Test 6 - Scan HTTP(s)
+                echo "Installation de nmap..."
+                sudo apt install nmap
+
+                read -p "Veuillez entrer l'adresse IP ou la plage d'adresses à scanner (ex. 192.168.1.1 ou 192.168.1.1-254) : " SCAN
+                nmap $SCAN
+
+                read -p "Voulez-vous scanner les ports 80 et 443 ? (oui/non) " HTTP_S
+                if [ "$HTTP_S" == "oui" ]; then
+                    nmap -p 80,443 $SCAN
+                fi
+                ;;
+              7) # Test 7 - Scan DHCP
+                echo "Lancement du scan DHCP..."
+                sudo nmap -sV 192.168.27.0/24 --script=broadcast-dhcp-discover
+                ;;
+            8) # Test 8 - Scan CVE
+                read -p "Veuillez donner l'adresse IP de la machine à scanner : " IP_RESEAU
+                clear
+                nmap -Pn --script vuln $IP_RESEAU
+                echo "VOICI VOS RÉSULTATS"
+                ;;
+            9) # Test 9 - Infos WAN
+                read -p "Quel domaine souhaitez-vous scanner ? Veuillez entrer l'adresse complète (exem>
+                clear
+                echo "Voici vos résultats pour le domaine $DOMAIN :"
+                dig $DOMAIN
+                ;;
+            10) # Profil
+            read -p "Entrez le nom du profil : " PRO1
+            read -p "Entrez l'adresse IP souhaitée : " FIX_IP
+            read -p "Entrez le masque ( ICI /24 ) : " MASK
+            read -p "Entrez la passerelle (GATEWAY) : " GW
+            read -p "Entrez le ou les serveurs DNS (séparés par des espaces) : " DNS3
+
+            # Ajoutez la configuration d'adresse IP statique au profil réseau
+            sudo nmcli connection add type ethernet con-name "$PRO1" ifname ens33
+            sudo nmcli connection modify $PRO1 ipv4.method manual ipv4.address $FIX_IP$MASK ipv4.gateway $GW IPV4.DNS $DNS3
+            sudo nmcli device connect ens33
+            sudo systemctl restart networking
+            echo "Adresse IP statique configurée pour le profil"
+            /n
+            echo "La liste des profils va être afficher."
+            sudo nmcli connection show
+            read -p " Entrez le nom du profil a détruire définitivement " DEL
+            sudo nmcli connection delete "$DEL"
+                ;;
+            11) # Test 10 - FIN
+                echo "Fin du programme."
+                exit 0
+                ;;
+            *) # Gérer les choix invalides
+                echo "Choix invalide. Veuillez réessayer."
+                ;;
+        esac
+    done
+done
