@@ -99,3 +99,4 @@ sudo chmod 755 /var/www/${SITE_NAME}-data -R
 sudo systemctl restart apache2
 
 echo "Installation de $SITE_NAME terminée."
+
