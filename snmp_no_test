@@ -1,0 +1,63 @@
+#!/bin/bash
+
+# Récupérer l'adresse IP du serveur
+SNMP_SERVER=$(hostname -I | awk '{print $1}')
+
+# Demander à l'utilisateur de saisir la communauté SNMP
+read -p "Veuillez saisir la communauté SNMP (par exemple, 'masociete') : " SNMP_COMMUNITY
+
+# Étape 1: Installation de SNMP
+echo "Installation de SNMP"
+sudo apt install snmpd snmp
+
+# Étape 2: Vérifier le statut de SNMP
+echo "Vérification du statut de SNMP"
+sudo systemctl status snmpd
+
+# Si l'installation échoue, démarrer SNMP
+if [ $? -ne 0 ]; then
+    echo "Démarrage de SNMP suite à un échec de l'installation"
+    sudo systemctl start snmpd
+fi
+
+# Étape 3: Configurer snmpd.conf
+echo "Configuration de snmpd.conf"
+sudo bash -c "cat << EOF > /etc/snmp/snmpd.conf
+# Listen for connections from the specified SNMP server
+agentAddress udp:$SNMP_SERVER:161
+
+# Specify the community string
+rocommunity $SNMP_COMMUNITY default -V systemonly
+
+# Specify system location and contact
+sysLocation $SNMP_SERVER
+sysContact jbnr@jbnr.loc
+EOF"
+
+# Afficher la configuration
+echo "Vérification de la configuration SNMP (snmpd) :"
+cat /etc/snmp/snmpd.conf
+
+# Demander à l'utilisateur s'il souhaite éditer la configuration SNMP
+read -p "Voulez-vous éditer la configuration SNMP ? (oui/non) : " EDIT_CONFIG
+
+if [[ "$EDIT_CONFIG" == "oui" || "$EDIT_CONFIG" == "OUI" ]]; then
+    # Éditer le fichier de configuration avec nano
+    sudo nano /etc/snmp/snmpd.conf
+
+    # Redémarrage du service SNMP après édition de la configuration
+    echo "Redémarrage du service SNMP..."
+    sudo systemctl restart snmpd
+    echo "Service SNMP redémarré."
+
+    # Vérification de la configuration après modification
+    echo "Vérification de la configuration SNMP (snmpd) après modification :"
+    cat /etc/snmp/snmpd.conf
+else
+    echo "Aucune édition de la configuration SNMP effectuée."
+fi
+
+echo "Installation et configuration de SNMP terminées."
+
+echo "Exécution d'un snmpwalk pour tester la configuration"
+snmpwalk -v1 $SNMP_SERVER -c $SNMP_COMMUNITY .1.3.6.1.2.1.1.1.0
