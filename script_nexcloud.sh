@@ -1,5 +1,9 @@
 #!/bin/bash
 
+#modification du fichier
+
+
+
 # Demander le nom de domaine ou l'adresse IP du serveur
 read -p "Entrez le nom de domaine ou l'adresse IP du serveur : " SERVER_NAME
 
