@@ -14,3 +14,4 @@ sudo systemctl enable redis-server
 
 # Afficher le statut du service Redis
 sudo systemctl status redis-server
+
